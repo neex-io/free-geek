@@ -1,11 +1,14 @@
 from django.db import models
+from django.forms import ModelForm
 from django.contrib import admin
 import datetime
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from django.contrib.auth.models import User, UserManager
+from django.contrib.auth.models import User, UserManager, AbstractUser  # noqa
 from django.forms import ValidationError
-from . import settings
+from . import settings  # noqa
+from .models_old import *
+
 
 DURATION_ZERO = datetime.time(hour=0)
 DEFAULT_DURATION = datetime.time(hour=1)
@@ -15,11 +18,10 @@ phoneValidator = RegexValidator(
     regex=r'[0-9][0-9 ]+',
     message='Not a valid phone number')
 
-from models_old import *
 
 class ProfileManager(UserManager):
-    """ only users with the staff level can add and modify Profiles """
-    
+    """ Staff model Manager to allow only staff to modify Profiles"""
+
     def get_by_natural_key(self, username):
         """
         Enable serialisation without pk. Not needed ATM.
@@ -249,8 +251,8 @@ class Appointment(models.Model):
         filled_string = 'unfilled'
         if self.filled:
             filled_string = 'filled by %s %s' % (self.profile.first_name, self.profile.last_name)
-        appointment_string = ("From %s to %s at %s in %s requires proficiency %s, currently %s." % 
-                              (str(self.start_time), str(self.end_time), 
+        appointment_string = ("From %s to %s at %s in %s requires proficiency %s, currently %s." %
+                              (str(self.start_time), str(self.end_time),
                                str(self.station), str(self.station.location),
                                self.proficiency, filled_string))
         return appointment_string
@@ -331,3 +333,196 @@ def unassign_appointment(appointment):
     appointment.profile = None
     appointment.save()
     return True
+
+
+# Everything below is copied/derived from models_old.probably
+# There are some problems with migrations because >1 models correspond to a db name
+
+class Shift(models.Model):
+    type = models.CharField(max_length=255, blank=True, null=True)
+    start_time = models.TimeField(blank=True, null=True)
+    end_time = models.TimeField(blank=True, null=True)
+    meeting_name = models.CharField(max_length=255, blank=True, null=True)
+    shift_date = models.DateField(blank=True, null=True)
+    effective_date = models.DateField(blank=True, null=True)
+    ineffective_date = models.DateField(blank=True, null=True)
+    all_day = models.NullBooleanField()
+    repeats_every = models.IntegerField(blank=True, null=True)
+    repeats_on = models.IntegerField(blank=True, null=True)
+    frequency_type_id = models.IntegerField(blank=True, null=True)
+    job_id = models.IntegerField(blank=True, null=True)
+    meeting_id = models.IntegerField(blank=True, null=True)
+    schedule_id = models.IntegerField(blank=True, null=True)
+    weekday = models.ForeignKey('Weekday', blank=True, null=True)
+    worker = models.ForeignKey('Worker', blank=True, null=True)
+    actual = models.NullBooleanField()
+    training = models.NullBooleanField()
+    proposed = models.BooleanField()
+    created_by = models.ForeignKey(User, db_column='created_by', blank=True, null=True, related_name='shift_created_by_user')
+    updated_by = models.ForeignKey(User, db_column='updated_by', blank=True, null=True, related_name='shift_updated_by_user')
+    created_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+    week_1_of_month = models.BooleanField()
+    week_2_of_month = models.BooleanField()
+    week_3_of_month = models.BooleanField()
+    week_4_of_month = models.BooleanField()
+    week_5_of_month = models.BooleanField()
+    offsite = models.BooleanField()
+    repeats_every_months = models.IntegerField()
+    repeats_on_months = models.IntegerField()
+    week = models.CharField(max_length=1, blank=True, null=True)
+
+    class Meta:
+        db_table = 'shifts'
+
+
+class StandardShift(models.Model):
+    start_time = models.TimeField(blank=True, null=True)
+    end_time = models.TimeField(blank=True, null=True)
+    job_id = models.IntegerField(blank=True, null=True)
+    meeting_id = models.IntegerField(blank=True, null=True)
+    schedule_id = models.IntegerField(blank=True, null=True)
+    weekday = models.ForeignKey('Weekday', blank=True, null=True)
+    worker = models.ForeignKey('Worker', blank=True, null=True)
+    shift_date = models.DateField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'standard_shifts'
+
+
+class Weekday(models.Model):
+    name = models.CharField(max_length=255, blank=True, null=True)
+    short_name = models.CharField(max_length=255, blank=True, null=True)
+    is_open = models.NullBooleanField()
+    start_time = models.TimeField(blank=True, null=True)
+    end_time = models.TimeField(blank=True, null=True)
+    open_time = models.TimeField()
+    close_time = models.TimeField()
+
+    class Meta:
+        db_table = 'weekdays'
+
+
+class WorkShift(models.Model):
+    kind = models.CharField(max_length=255)
+    start_time = models.TimeField(blank=True, null=True)
+    end_time = models.TimeField(blank=True, null=True)
+    meeting_name = models.CharField(max_length=255, blank=True, null=True)
+    shift_date = models.DateField(blank=True, null=True)
+    effective_date = models.DateField(blank=True, null=True)
+    ineffective_date = models.DateField(blank=True, null=True)
+    all_day = models.NullBooleanField()
+    repeats_every = models.IntegerField(blank=True, null=True)
+    repeats_on = models.IntegerField(blank=True, null=True)
+    frequency_type_id = models.IntegerField(blank=True, null=True)
+    job_id = models.IntegerField(blank=True, null=True)
+    meeting_id = models.IntegerField(blank=True, null=True)
+    schedule_id = models.IntegerField(blank=True, null=True)
+    shift_id = models.IntegerField(blank=True, null=True)
+    weekday = models.ForeignKey(Weekday, blank=True, null=True)
+    worker = models.ForeignKey('Worker', blank=True, null=True)
+    actual = models.NullBooleanField()
+    training = models.NullBooleanField()
+    proposed = models.NullBooleanField()
+    created_by = models.ForeignKey(
+        FGUser, db_column='created_by',
+        related_name='created_by_workshifts_set',
+        blank=True, null=True)
+    updated_by = models.ForeignKey(
+        FGUser, db_column='updated_by',
+        related_name='updated_by_workshifts_set',
+        blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+    offsite = models.BooleanField()
+
+    class Meta:
+        db_table = 'work_shifts'
+
+
+class Holiday(models.Model):
+    name = models.CharField(max_length=255, blank=True, null=True)
+    holiday_date = models.DateField(blank=True, null=True)
+    is_all_day = models.NullBooleanField()
+    start_time = models.TimeField(blank=True, null=True)
+    end_time = models.TimeField(blank=True, null=True)
+    frequency_type_id = models.IntegerField(blank=True, null=True)
+    schedule_id = models.IntegerField(blank=True, null=True)
+    weekday = models.ForeignKey('Weekday', blank=True, null=True)
+
+    class Meta:
+        db_table = 'holidays'
+
+
+class Worker(models.Model):
+    name = models.CharField(max_length=255, blank=True, null=True)
+    standard_weekly_hours = models.FloatField(blank=True, null=True)
+    weekly_admin_hours = models.FloatField(blank=True, null=True)
+    contact_id = models.IntegerField(blank=True, null=True)
+    sunday = models.FloatField(blank=True, null=True)
+    monday = models.FloatField(blank=True, null=True)
+    tuesday = models.FloatField(blank=True, null=True)
+    wednesday = models.FloatField(blank=True, null=True)
+    thursday = models.FloatField(blank=True, null=True)
+    friday = models.FloatField(blank=True, null=True)
+    saturday = models.FloatField(blank=True, null=True)
+    salaried = models.NullBooleanField()
+    pto_rate = models.FloatField(blank=True, null=True)
+    floor_hours = models.FloatField(blank=True, null=True)
+    ceiling_hours = models.FloatField(blank=True, null=True)
+    virtual = models.BooleanField()
+
+    class Meta:
+        db_table = 'workers'
+
+
+class WorkersWorkerType(models.Model):
+    worker = models.ForeignKey('Worker')
+    worker_type = models.ForeignKey(WorkerType)
+    effective_on = models.DateField(blank=True, null=True)
+    ineffective_on = models.DateField(blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'workers_worker_types'
+
+
+class Vacation(models.Model):
+    effective_date = models.DateField(blank=True, null=True)
+    ineffective_date = models.DateField(blank=True, null=True)
+    is_all_day = models.NullBooleanField()
+    start_time = models.TimeField(blank=True, null=True)
+    end_time = models.TimeField(blank=True, null=True)
+    worker = models.ForeignKey('Worker', blank=True, null=True)
+    created_by = models.ForeignKey(
+        FGUser, db_column='created_by',
+        related_name='created_by_vacations_set',
+        blank=True, null=True)
+    updated_by = models.ForeignKey(
+        FGUser, db_column='updated_by',
+        related_name='updated_by_vacations_set',
+        blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'vacations'
+
+
+class Role(models.Model):
+    name = models.CharField(max_length=40, blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+    notes = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta:
+        db_table = 'roles'
+
+
+class UserRole(models.Model):
+    user = models.ForeignKey(User, blank=True, null=True)
+    role = models.ForeignKey(Role, blank=True, null=True)
+
+    class Meta:
+        db_table = 'roles_users'

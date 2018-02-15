@@ -1,6 +1,24 @@
 from django.contrib import admin
+from .models import Shift, Worker, Role, Profile
 from django.apps import apps
 from django import forms
+
+class ShiftAdmin(admin.ModelAdmin):
+    pass
+
+
+class WorkerAdmin(admin.ModelAdmin):
+    pass
+
+
+class RoleAdmin(admin.ModelAdmin):
+    pass
+
+admin.site.register(Shift, ShiftAdmin)
+admin.site.register(Worker, WorkerAdmin)
+admin.site.register(Role, RoleAdmin)
+admin.site.register(Profile)
+
 
 excluded_models = []
 unsearchable_field_types = ['ForeignKey', 'OneToOneField', 'TimeField', 'DateTimeField', 'DateField', 'AutoField']
@@ -14,7 +32,7 @@ link_suffix = ''
 # register some admin interface managers for each app in the app_names list
 for app_name in apps_to_admin:
     app = apps.get_app_config(app_name)
-    for model_name, Model in app.models.iteritems():
+    for model_name, Model in app.models.items():
         if model_name in excluded_models:
             continue
 
